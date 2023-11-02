@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lab 5</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <!-- Load c3.css -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.7.20/c3.css" rel="stylesheet">
+
+    <!-- Load d3.js and c3.js -->
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.7.20/c3.min.js"></script>
+
+    <script type="text/javascript" src="data.js"></script>
+
+    <style type="text/css">
+        /* Style of the Legend: adjust the values below to change the appearance of the legend pane*/
+        .legend {
+            padding: 6px 8px;
+            line-height: 18px;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+
+        /* Adjust the values below to change the appearance of the legend color boxes */
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin right: 8px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+<div id="map" style="height: 500px"></div>
+<div id="chart"></div>
+
+<script type="text/javascript">
+    var map = L.map('map', {
+        center: [41.8781, -87.6298], // Chicago coordinates
+        zoom: 10
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    function getColor(value) {
+        return value > 92582 ? '#800026':
+            value > 45714 ? '#BD0026':
+            value > 24804 ? '#E31A1C':
+            value > 13781 ? '#FC4E2A':
+            '#FD8D3C';
+    }
+
+    function style(feature) {
+        return {
+            fillColor: getColor(feature.properties.popden1),   // popden1 is the field name for the population density data
+            weight: 2,
+            opacity: 1,
+            color: 'gray',
+            fillOpacity: 0.9
+        };
+    }
+
+    function makeChart(props) {
+        c3.generate({
+            bindto: '#chart',
+            size: {
+                height: 180,
+                width: 180
+            },
+            title: {
+                text: props.name  // Use lowercase field name here
+            },
+            data: {
+                columns: [
+                    ['white', props.white],   // Use lowercase field names here
+                    ['black', props.black],
+                    ['asian', props.asian],
+                    ['mixed', props.mixed],
+                    ['other', props.other]
+                ],
+                type: 'pie'
+            },
+            pie: {
+                label: {
+                    show: true
+                },
+                width: 30
+            },
+            color: {
+                pattern: ["#EC7063", "#5DADE2", "#27AE60", "#F4D03F", "#E67E22"]
+            }
+        });
+    }
+
+    function highlightFeature(e) {
+        var layer = e.target;
+
+        // You can adjust the values below to change the highlighting styles of features on mouseover
+        layer.setStyle({
+            weight: 5,
+            color: '#666',
+            dashArray: '6', // defines the stroke dash pattern; check out the link for more: https://goo.gl/AWl5sC
+            fillOpacity: 0.7
+        });
+
+        // Fix display layer problems with IE and Opera (no need to change anything)
+        if (!L.Browser.ie && !L.Browser.opera) {
+            layer.bringToFront();
+        }
+
+        makeChart(layer.feature.properties);
+    }
+
+    var geojson;
+
+    function resetHighlight(e) {
+        geojson.resetStyle(e.target);
+    }
+
+    // Combine the mouseover and mouseout actions (defined above)
+    function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: highlightFeature,
+            mouseout: resetHighlight,
+        });
+    }
+
+    var tooltip = document.getElementById("chart"); // Get the chart element
+
+    geojson = L.geoJson(data, {
+        style: style,
+        onEachFeature: onEachFeature
+    }).bindTooltip(tooltip).addTo(map); // Bind the chart as a tooltip
+
+    var legend = L.control({position: 'bottomright'});
+
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'legend');
+        var grades = [0, 13781, 24804, 45714, 92582, 456250];
+
+        div.innerHTML = '<b>Population Density <br> 2014 <br></b>';
+
+        // Loop through our the classes and generate a label with a color box for each interval.
+        for (var i = 0; i < grades.length; i++) {
+            div.innerHTML +=
+                '<i style="background:' + getColor(grades[i] + 1) + '"></i>' +
+                grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+        }
+
+        return div;
+    };
+
+    legend.addTo(map);
+</script>
+</body>
+</html>
